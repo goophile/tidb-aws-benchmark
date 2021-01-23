@@ -1,0 +1,736 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Create a cluster of EC2 servers for TiDB.",
+    "Parameters": {
+        "KeyName": {
+            "Description": "Name of an existing EC2 KeyPair to enable SSH access to the instance",
+            "Type": "AWS::EC2::KeyPair::KeyName",
+            "ConstraintDescription": "must be the name of an existing EC2 KeyPair."
+        }
+    },
+    "Mappings": {
+        "InstanceProfile": {
+            "ControlServer": {
+                "Description": "Run TiUP. Use general purpose EC2 instance.",
+                "InstanceType": "t3.2xlarge",
+                "PrivateIpAddress": "10.0.1.10"
+            },
+            "TiDB1": {
+                "Description": "Better to be compute optimized.",
+                "InstanceType": "c5.2xlarge",
+                "PrivateIpAddress": "10.0.1.11"
+            },
+            "PD1": {
+                "Description": "TiDB Placement Driver.",
+                "InstanceType": "t3.2xlarge",
+                "PrivateIpAddress": "10.0.1.51"
+            },
+            "TiKV1": {
+                "Description": "Better to be storage optimized.",
+                "InstanceType": "i3.2xlarge",
+                "PrivateIpAddress": "10.0.1.101"
+            },
+            "TiKV2": {
+                "Description": "Better to be storage optimized.",
+                "InstanceType": "i3.2xlarge",
+                "PrivateIpAddress": "10.0.1.102"
+            },
+            "TiKV3": {
+                "Description": "Better to be storage optimized.",
+                "InstanceType": "i3.2xlarge",
+                "PrivateIpAddress": "10.0.1.103"
+            },
+            "Others": {
+                "Description": "Instance for monitoring, grafana, alertmanager.",
+                "InstanceType": "t3.2xlarge",
+                "PrivateIpAddress": "10.0.1.151"
+            }
+        },
+        "AWSRegion2AMI": {
+            "af-south-1": {
+                "Ubuntu2004": "ami-0a27a0986610039b0"
+            },
+            "ap-east-1": {
+                "Ubuntu2004": "ami-09ba3437e80b81e86"
+            },
+            "ap-northeast-1": {
+                "Ubuntu2004": "ami-0f54a65fce62208c2"
+            },
+            "ap-south-1": {
+                "Ubuntu2004": "ami-049ab28ed3bb03bc9"
+            },
+            "ap-southeast-1": {
+                "Ubuntu2004": "ami-088973f12caf36452"
+            },
+            "ca-central-1": {
+                "Ubuntu2004": "ami-0fe54fc2b74043905"
+            },
+            "eu-central-1": {
+                "Ubuntu2004": "ami-0a875db8a031a9efb"
+            },
+            "eu-north-1": {
+                "Ubuntu2004": "ami-0e5ce6b5931102ee5"
+            },
+            "eu-south-1": {
+                "Ubuntu2004": "ami-05cd04bae816ba310"
+            },
+            "eu-west-1": {
+                "Ubuntu2004": "ami-0da36f7f059b7086e"
+            },
+            "me-south-1": {
+                "Ubuntu2004": "ami-0e8b223415f423d34"
+            },
+            "sa-east-1": {
+                "Ubuntu2004": "ami-0f2a394c7ec0966c2"
+            },
+            "us-east-1": {
+                "Ubuntu2004": "ami-0074ee617a234808d"
+            },
+            "us-west-1": {
+                "Ubuntu2004": "ami-0f961012aa6154e3a"
+            },
+            "cn-north-1": {
+                "Ubuntu2004": "ami-0592ccadb56e65f8d"
+            },
+            "cn-northwest-1": {
+                "Ubuntu2004": "ami-007d0f254ea0f8588"
+            },
+            "us-gov-west-1": {
+                "Ubuntu2004": "ami-da2a11bb"
+            },
+            "us-gov-east-1": {
+                "Ubuntu2004": "ami-5ce8032d"
+            },
+            "ap-northeast-2": {
+                "Ubuntu2004": "ami-044bb09d2020f8760"
+            },
+            "ap-southeast-2": {
+                "Ubuntu2004": "ami-0e2e14798f7a300a1"
+            },
+            "eu-west-2": {
+                "Ubuntu2004": "ami-09f5b7791a4e85729"
+            },
+            "us-east-2": {
+                "Ubuntu2004": "ami-0b287e7832eb862f8"
+            },
+            "us-west-2": {
+                "Ubuntu2004": "ami-0438cf1f8a8765051"
+            },
+            "ap-northeast-3": {
+                "Ubuntu2004": "ami-0431517d1ae83eac6"
+            },
+            "eu-west-3": {
+                "Ubuntu2004": "ami-03b5a531c0da96276"
+            }
+        }
+    },
+    "Resources": {
+        "VPC": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": "10.0.0.0/16",
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "Subnet": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "CidrBlock": "10.0.1.0/24",
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "InternetGateway": {
+            "Type": "AWS::EC2::InternetGateway",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "AttachGateway": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }
+            }
+        },
+        "RouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "Route": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "RouteTable"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }
+            }
+        },
+        "SubnetRouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "Subnet"
+                },
+                "RouteTableId": {
+                    "Ref": "RouteTable"
+                }
+            }
+        },
+        "NetworkAcl": {
+            "Type": "AWS::EC2::NetworkAcl",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    }
+                ]
+            }
+        },
+        "InboundSSHNetworkAclEntry": {
+            "Type": "AWS::EC2::NetworkAclEntry",
+            "Properties": {
+                "NetworkAclId": {
+                    "Ref": "NetworkAcl"
+                },
+                "RuleNumber": "101",
+                "Protocol": "6",
+                "RuleAction": "allow",
+                "Egress": "false",
+                "CidrBlock": "0.0.0.0/0",
+                "PortRange": {
+                    "From": "22",
+                    "To": "22"
+                }
+            }
+        },
+        "OutBoundResponsePortsNetworkAclEntry": {
+            "Type": "AWS::EC2::NetworkAclEntry",
+            "Properties": {
+                "NetworkAclId": {
+                    "Ref": "NetworkAcl"
+                },
+                "RuleNumber": "102",
+                "Protocol": "6",
+                "RuleAction": "allow",
+                "Egress": "true",
+                "CidrBlock": "0.0.0.0/0",
+                "PortRange": {
+                    "From": "1",
+                    "To": "65535"
+                }
+            }
+        },
+        "SubnetNetworkAclAssociation": {
+            "Type": "AWS::EC2::SubnetNetworkAclAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "Subnet"
+                },
+                "NetworkAclId": {
+                    "Ref": "NetworkAcl"
+                }
+            }
+        },
+        "IPAddress": {
+            "Type": "AWS::EC2::EIP",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "Domain": "vpc",
+                "InstanceId": {
+                    "Ref": "ControlServer"
+                }
+            }
+        },
+        "InstanceSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "VPC"
+                },
+                "GroupDescription": "Allow all TCP ports within VPC",
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "1",
+                        "ToPort": "65535",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
+        },
+        "ControlServer": {
+            "Type": "AWS::EC2::Instance",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegion2AMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Ubuntu2004"
+                    ]
+                },
+                "InstanceType": {
+                    "Fn::FindInMap": [
+                        "InstanceProfile",
+                        "ControlServer",
+                        "InstanceType"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "ControlServer"
+                    }
+                ],
+                "NetworkInterfaces": [
+                    {
+                        "GroupSet": [
+                            {
+                                "Ref": "InstanceSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress": "true",
+                        "DeviceIndex": "0",
+                        "DeleteOnTermination": "true",
+                        "SubnetId": {
+                            "Ref": "Subnet"
+                        },
+                        "PrivateIpAddress": {
+                            "Fn::FindInMap": [
+                                "InstanceProfile",
+                                "ControlServer",
+                                "PrivateIpAddress"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "TiDB1": {
+            "Type": "AWS::EC2::Instance",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegion2AMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Ubuntu2004"
+                    ]
+                },
+                "InstanceType": {
+                    "Fn::FindInMap": [
+                        "InstanceProfile",
+                        "TiDB1",
+                        "InstanceType"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "TiDB1"
+                    }
+                ],
+                "NetworkInterfaces": [
+                    {
+                        "GroupSet": [
+                            {
+                                "Ref": "InstanceSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress": "false",
+                        "DeviceIndex": "0",
+                        "DeleteOnTermination": "true",
+                        "SubnetId": {
+                            "Ref": "Subnet"
+                        },
+                        "PrivateIpAddress": {
+                            "Fn::FindInMap": [
+                                "InstanceProfile",
+                                "TiDB1",
+                                "PrivateIpAddress"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "PD1": {
+            "Type": "AWS::EC2::Instance",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegion2AMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Ubuntu2004"
+                    ]
+                },
+                "InstanceType": {
+                    "Fn::FindInMap": [
+                        "InstanceProfile",
+                        "PD1",
+                        "InstanceType"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "PD1"
+                    }
+                ],
+                "NetworkInterfaces": [
+                    {
+                        "GroupSet": [
+                            {
+                                "Ref": "InstanceSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress": "false",
+                        "DeviceIndex": "0",
+                        "DeleteOnTermination": "true",
+                        "SubnetId": {
+                            "Ref": "Subnet"
+                        },
+                        "PrivateIpAddress": {
+                            "Fn::FindInMap": [
+                                "InstanceProfile",
+                                "PD1",
+                                "PrivateIpAddress"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "TiKV1": {
+            "Type": "AWS::EC2::Instance",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegion2AMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Ubuntu2004"
+                    ]
+                },
+                "InstanceType": {
+                    "Fn::FindInMap": [
+                        "InstanceProfile",
+                        "TiKV1",
+                        "InstanceType"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "TiKV1"
+                    }
+                ],
+                "NetworkInterfaces": [
+                    {
+                        "GroupSet": [
+                            {
+                                "Ref": "InstanceSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress": "false",
+                        "DeviceIndex": "0",
+                        "DeleteOnTermination": "true",
+                        "SubnetId": {
+                            "Ref": "Subnet"
+                        },
+                        "PrivateIpAddress": {
+                            "Fn::FindInMap": [
+                                "InstanceProfile",
+                                "TiKV1",
+                                "PrivateIpAddress"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "TiKV2": {
+            "Type": "AWS::EC2::Instance",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegion2AMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Ubuntu2004"
+                    ]
+                },
+                "InstanceType": {
+                    "Fn::FindInMap": [
+                        "InstanceProfile",
+                        "TiKV2",
+                        "InstanceType"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "TiKV2"
+                    }
+                ],
+                "NetworkInterfaces": [
+                    {
+                        "GroupSet": [
+                            {
+                                "Ref": "InstanceSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress": "false",
+                        "DeviceIndex": "0",
+                        "DeleteOnTermination": "true",
+                        "SubnetId": {
+                            "Ref": "Subnet"
+                        },
+                        "PrivateIpAddress": {
+                            "Fn::FindInMap": [
+                                "InstanceProfile",
+                                "TiKV2",
+                                "PrivateIpAddress"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "TiKV3": {
+            "Type": "AWS::EC2::Instance",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegion2AMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Ubuntu2004"
+                    ]
+                },
+                "InstanceType": {
+                    "Fn::FindInMap": [
+                        "InstanceProfile",
+                        "TiKV3",
+                        "InstanceType"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "TiKV3"
+                    }
+                ],
+                "NetworkInterfaces": [
+                    {
+                        "GroupSet": [
+                            {
+                                "Ref": "InstanceSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress": "false",
+                        "DeviceIndex": "0",
+                        "DeleteOnTermination": "true",
+                        "SubnetId": {
+                            "Ref": "Subnet"
+                        },
+                        "PrivateIpAddress": {
+                            "Fn::FindInMap": [
+                                "InstanceProfile",
+                                "TiKV3",
+                                "PrivateIpAddress"
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "Others": {
+            "Type": "AWS::EC2::Instance",
+            "DependsOn": "AttachGateway",
+            "Properties": {
+                "ImageId": {
+                    "Fn::FindInMap": [
+                        "AWSRegion2AMI",
+                        {
+                            "Ref": "AWS::Region"
+                        },
+                        "Ubuntu2004"
+                    ]
+                },
+                "InstanceType": {
+                    "Fn::FindInMap": [
+                        "InstanceProfile",
+                        "Others",
+                        "InstanceType"
+                    ]
+                },
+                "KeyName": {
+                    "Ref": "KeyName"
+                },
+                "Tags": [
+                    {
+                        "Key": "Application",
+                        "Value": {
+                            "Ref": "AWS::StackId"
+                        }
+                    },
+                    {
+                        "Key": "Name",
+                        "Value": "Others"
+                    }
+                ],
+                "NetworkInterfaces": [
+                    {
+                        "GroupSet": [
+                            {
+                                "Ref": "InstanceSecurityGroup"
+                            }
+                        ],
+                        "AssociatePublicIpAddress": "false",
+                        "DeviceIndex": "0",
+                        "DeleteOnTermination": "true",
+                        "SubnetId": {
+                            "Ref": "Subnet"
+                        },
+                        "PrivateIpAddress": {
+                            "Fn::FindInMap": [
+                                "InstanceProfile",
+                                "Others",
+                                "PrivateIpAddress"
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+    },
+    "Outputs": {
+        "IPAddress": {
+            "Value": {
+                "Fn::GetAtt": [
+                    "ControlServer",
+                    "PublicIp"
+                ]
+            },
+            "Description": "Public IP of ControlServer."
+        }
+    }
+}
