@@ -44,6 +44,8 @@ class SSH:
             raise CMDError(f'no sudo privilege or requires sudo password: `{cmd}`')
 
     def _cmd(self, cmd: str) -> Tuple[int, str]:
+        cmd = f"bash -l -i -c '{cmd}'" # make bash load .bashrc
+
         # When get_pty=True, stderr is always empty.
         _stdin, stdout, _stderr = self.client.exec_command(cmd, timeout=self.timeout, get_pty=True)
         stdout.channel.settimeout(self.timeout)
