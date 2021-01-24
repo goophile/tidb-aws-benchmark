@@ -27,6 +27,7 @@ class AWS:
         """
         Create EC2 SSH key pair, store private key in self.private_key_path.
         """
+        logger.info('Create SSH key pair...')
         if self.private_key_path.exists():
             logger.info('SSH Private key already exists, skip creating')
             return
@@ -42,6 +43,7 @@ class AWS:
         """
         Delete a SSH key pair on AWS EC2, also delete local private key self.private_key_path.
         """
+        logger.info('Delete SSH key pair...')
         if self._ssh_key_exists():
             self.ec2.delete_key_pair(KeyName=self.ssh_key)
             logger.info(f'Deleted the SSH key {self.ssh_key} on AWS')
@@ -77,6 +79,10 @@ class AWS:
             logger.info(f'The Cloudformation stack {self.ec2_stack} already exists, skip creating')
             return
 
+        logger.info('=' * 50)
+        logger.info('Create Cloudformation stack...')
+        logger.info('=' * 50)
+
         with open(template_path) as f:
             template_body = f.read()
 
@@ -98,6 +104,7 @@ class AWS:
         """
         Delete the Cloudformation stack from AWS.
         """
+        logger.info('Delete Cloudformation stack...')
         if not self._is_stack_exists():
             logger.info('The Cloudformation stack does not exist')
             return

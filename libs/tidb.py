@@ -1,7 +1,16 @@
 """
 Install and benchmark TiDB via the ControlServer.
 """
+import logging
 from libs.ssh import SSH, SFTP
+
+logger = logging.getLogger(__name__)
+
+
+def _log_step(msg: str):
+    logger.info('=' * 50)
+    logger.info(msg)
+    logger.info('=' * 50)
 
 
 class ControlServer:
@@ -18,6 +27,7 @@ class ControlServer:
         self.tidb_host = '10.0.1.11'  # keep the same as tidb-topology.yaml
 
     def _put_ssh_key(self):
+        logger.info('SCP SSH private key to ControlServer')
         # All EC2 instances share the same key, so copy the private key to ControlServer
         rsa_path = f'/home/{self.username}/.ssh/id_rsa'
         SFTP(self.host, 22, self.username, self.keyfile).put(self.keyfile, rsa_path)
@@ -27,6 +37,8 @@ class ControlServer:
         """
         Add SSH key, install sshpass and TiUP.
         """
+        _log_step('Add SSH key, install sshpass and TiUP')
+
         self._put_ssh_key()
 
         cmds = [
@@ -42,6 +54,8 @@ class ControlServer:
         """
         Install TiDB with TiUP, and start TiDB cluster.
         """
+        _log_step('Install TiDB with TiUP, and start TiDB cluster')
+
         yaml = f'/home/{self.username}/tidb-template.yaml'
         SFTP(self.host, 22, self.username, self.keyfile).put(template_path, yaml)
 
@@ -55,6 +69,8 @@ class ControlServer:
         """
         Download go-tpc from Github.
         """
+        _log_step('Download go-tpc from Github onto ControlServer')
+
         url = ('https://github.com/pingcap/go-tpc/releases/download/'
                f'v{version}/go-tpc_{version}_linux_amd64.tar.gz')
         self.ssh.exec_cmd(f'wget "{url}"')
@@ -64,6 +80,8 @@ class ControlServer:
         """
         Insert data into TiDB.
         """
+        _log_step('Insert test data into TiDB')
+
         cmd = f'./go-tpc tpcc -H {self.tidb_host} --warehouses {warehouses} --parts {parts} prepare'
         self.ssh.exec_cmd(cmd, timeout=300)
 
@@ -71,6 +89,7 @@ class ControlServer:
         """
         Clean the prepared data.
         """
+        _log_step('Clean the prepared data')
         cmd = f'./go-tpc tpcc -H {self.tidb_host} --warehouses {warehouses} cleanup'
         self.ssh.exec_cmd(cmd, timeout=300)
 
@@ -78,6 +97,8 @@ class ControlServer:
         """
         Benchmark with go-tpc.
         """
+        _log_step('Benchmark with go-tpc')
+
         cmd = (f'./go-tpc tpcc -H {self.tidb_host} '
                f'-T {threads} --time {time}s --warehouses {warehouses} run')
         self.ssh.exec_cmd(cmd)
