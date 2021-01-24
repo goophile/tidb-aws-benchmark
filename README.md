@@ -2,7 +2,7 @@
 
 Deploy TiDB cluster on AWS EC2, and benchmark with [go-tpc](https://github.com/pingcap/go-tpc#prepare).
 
-**!!! Notice: remember to delete the EC2 stack after test! The Cloudformation stack in use is expensive.**
+**!!! Notice: remember to delete the AWS Cloudformation stack after test! The stack costs about $4 per hour.**
 
 # Requirements
 
@@ -26,12 +26,10 @@ aws_access_key_id=fakeid
 aws_secret_access_key=fakekey
 ```
 
-You may also need to request AWS to increase your vCPU limit, otherwise the Cloudformation stack may fail to create.
-
 
 # Usage
 
-The easist way is to run the `benchmark.sh` script. It creates a Cloudformation stack on AWS, deploy an TiDB cluster, do the benchmark, and delete the AWS stack.
+The easiest way is to run `benchmark.sh`. It creates a Cloudformation stack on AWS, deploy an TiDB cluster, do the benchmark, and then delete the AWS stack.
 
 Or you can run the `main.py` with arguments according to your needs.
 
@@ -78,14 +76,14 @@ optional arguments:
 
 Edit `aws-cloudformation.json` and `tidb-topology.yaml` for different configurations.
 
-Different EC2 instances may have different performances. Current Cloudformation template chooses a cluster of EC2 instances according to [Software and Hardware Recommendations for Development and test environments](https://docs.pingcap.com/tidb/dev/hardware-and-software-requirements#development-and-test-environments) and [Minimal Deployment Topology](https://docs.pingcap.com/tidb/dev/minimal-deployment-topology).
+Different EC2 instance types may have different performances. Current Cloudformation template chooses a cluster of EC2 instances according to [Software and Hardware Recommendations for Development and test environments](https://docs.pingcap.com/tidb/dev/hardware-and-software-requirements#development-and-test-environments) and [Minimal Deployment Topology](https://docs.pingcap.com/tidb/dev/minimal-deployment-topology).
 
-The OS image in the Cloudformation template is Ubuntu 20.04. The image IDs come from [Amazon EC2 AMI Locator](https://cloud-images.ubuntu.com/locator/ec2/). You can also change the OS system in the Cloudformation template.
+The OS image in the Cloudformation template is Ubuntu 20.04. The image IDs come from [Amazon EC2 AMI Locator](https://cloud-images.ubuntu.com/locator/ec2/). You can also change the OS image in the Cloudformation template.
 
 
 # Sample result
 
-The sample templates use the following configuration:
+The sample template uses the following configuration:
 
 | Component              | InstanceType | Description       | vCPU | Memory | Storage        |
 | ---------------------- | ------------ | ----------------- | ---- | ------ | -------------- |
