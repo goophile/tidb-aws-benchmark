@@ -60,13 +60,14 @@ class AWS:
         return False
 
     def _wait_ec2_stack_complete(self):
-        while True:
+        for _ in range(180):
             response = self.cloudformation.describe_stacks(StackName=self.ec2_stack)
             stack = response['Stacks'][0]
             if stack['StackStatus'] == 'CREATE_COMPLETE':
                 return
             logger.info(f"The stack status is {stack['StackStatus']}, wait it CREATE_COMPLETE...")
             time.sleep(10)
+        raise Exception('Create Cloudformation stack failed')
 
     def create_ec2_stack(self, template_path: str):
         """
@@ -103,3 +104,16 @@ class AWS:
 
         self.cloudformation.delete_stack(StackName=self.ec2_stack)
         logger.info('Deleted the Cloudformation stack from AWS')
+
+    def get_ec2_ip(self) -> str:
+        """
+        Get the public IP of the ControlServer in the Cloudformation template.
+        """
+        response = self.cloudformation.describe_stacks(StackName=self.ec2_stack)
+        stack = response['Stacks'][0]
+        for output in stack['Outputs']:
+            if output['OutputKey'] == 'IPAddress':  # keep the same as in the template
+                logger.info(f"ControlServer public IP: {output['OutputValue']}")
+                return output['OutputValue']
+
+        raise Exception('Public IP not found')
