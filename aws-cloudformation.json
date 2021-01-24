@@ -508,6 +508,15 @@
                 "KeyName": {
                     "Ref": "KeyName"
                 },
+                "EbsOptimized": "true",
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": "200"
+                        }
+                    }
+                ],
                 "Tags": [
                     {
                         "Key": "Application",
@@ -567,6 +576,15 @@
                 "KeyName": {
                     "Ref": "KeyName"
                 },
+                "EbsOptimized": "true",
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": "200"
+                        }
+                    }
+                ],
                 "Tags": [
                     {
                         "Key": "Application",
@@ -626,6 +644,15 @@
                 "KeyName": {
                     "Ref": "KeyName"
                 },
+                "EbsOptimized": "true",
+                "BlockDeviceMappings": [
+                    {
+                        "DeviceName": "/dev/sda1",
+                        "Ebs": {
+                            "VolumeSize": "200"
+                        }
+                    }
+                ],
                 "Tags": [
                     {
                         "Key": "Application",
