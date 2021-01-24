@@ -16,7 +16,7 @@ class CMDError(Exception):
 
 
 class SSH:
-    def __init__(self, host: str, port: int = 22, timeout: int = 30):
+    def __init__(self, host: str, port: int = 22, timeout: int = 60):
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -43,12 +43,12 @@ class SSH:
         if int(rc_nr) != 0:
             raise CMDError(f'no sudo privilege or requires sudo password: `{cmd}`')
 
-    def _cmd(self, cmd: str) -> Tuple[int, str]:
+    def _cmd(self, cmd: str, timeout: int) -> Tuple[int, str]:
         cmd = f"bash -l -i -c '{cmd}'" # make bash load .bashrc
 
         # When get_pty=True, stderr is always empty.
-        _stdin, stdout, _stderr = self.client.exec_command(cmd, timeout=self.timeout, get_pty=True)
-        stdout.channel.settimeout(self.timeout)
+        _stdin, stdout, _stderr = self.client.exec_command(cmd, timeout=timeout, get_pty=True)
+        stdout.channel.settimeout(timeout)
 
         return_stdout = ''
         print()
@@ -57,7 +57,6 @@ class SSH:
             try:
                 data = stdout.channel.recv(102400)
             except socket.timeout:
-                logger.error(f'ssh timeout, got return string: ({return_stdout})')
                 raise CMDError(f'socket.timeout, ssh cmd failed: `{cmd}`')
 
             output = data.decode('utf-8', 'backslashreplace')
@@ -76,17 +75,18 @@ class SSH:
         rc_nr = stdout.channel.recv_exit_status()
         return int(rc_nr), return_stdout
 
-    def exec_cmd(self, cmd: str, strict: bool = True) -> Tuple[int, str]:
+    def exec_cmd(self, cmd: str, strict: bool = True, timeout: int = None) -> Tuple[int, str]:
         """
         Execute a shell command. Multiple calls are NOT in the same shell context.
         """
         self._validate_sudo_privilege(cmd)
 
+        timeout = timeout if timeout else self.timeout
+
         logger.info(f'Execute command `{cmd}` ...')
-        rc_nr, output = self._cmd(cmd)
+        rc_nr, output = self._cmd(cmd, timeout)
 
         if strict and rc_nr != 0:
-            logger.error(output)
             raise CMDError(f'The command `{cmd}` exited with none-zero code: {rc_nr}')
 
         return rc_nr, output
