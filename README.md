@@ -12,7 +12,7 @@ The script requires the following library:
 pip3 install boto3 paramiko
 ```
 
-Create an IAM role on AWS, with the following permissions:
+Create an IAM user on AWS, with `Programmatic access` type and the following permissions:
 
 - AmazonEC2FullAccess
 - AWSCloudFormationFullAccess
@@ -29,7 +29,12 @@ aws_secret_access_key=fakekey
 
 # Usage
 
-The easiest way is to run `benchmark.sh`. It creates a Cloudformation stack on AWS, deploy an TiDB cluster, do the benchmark, and then delete the AWS stack.
+Execute `benchmark.sh` to run a full cycle of benchmark test. The script will:
+
+- creates a Cloudformation stack on AWS
+- deploy an TiDB cluster
+- do the benchmark with specified arguments
+- delete the AWS stack
 
 Or you can run the `main.py` with arguments according to your needs.
 

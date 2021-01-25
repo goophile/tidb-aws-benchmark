@@ -2,7 +2,7 @@
 Install and benchmark TiDB via the ControlServer.
 """
 import logging
-from libs.ssh import SSH, SFTP
+from .ssh import SSH, SFTP
 
 logger = logging.getLogger(__name__)
 
